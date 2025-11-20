@@ -1,0 +1,77 @@
+name: Infrastructure Validation
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  terraform-validate:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: 1.5.0
+    
+    - name: Terraform Format Check
+      run: |
+        if [ -d "terraform" ]; then
+          cd terraform
+          terraform fmt -check -recursive
+        fi
+    
+    - name: Terraform Init
+      run: |
+        if [ -d "terraform" ]; then
+          cd terraform
+          terraform init -backend=false
+        fi
+    
+    - name: Terraform Validate
+      run: |
+        if [ -d "terraform" ]; then
+          cd terraform
+          terraform validate
+        fi
+  
+  helm-validate:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Helm
+      uses: azure/setup-helm@v4
+      with:
+        version: 'v3.12.0'
+    
+    - name: Helm Lint
+      run: |
+        if [ -d "helm" ]; then
+          for chart in helm/*/; do
+            helm lint $chart
+          done
+        fi
+  
+  docker-validate:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Validate Docker Compose
+      run: |
+        if [ -f "docker/docker-compose.yml" ]; then
+          docker-compose -f docker/docker-compose.yml config
+        fi
+    
+    - name: Validate Dockerfiles
+      uses: hadolint/hadolint-action@v3.1.0
+      with:
+        dockerfile: "docker/*/Dockerfile"
+        recursive: true
